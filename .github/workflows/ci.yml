@@ -1,0 +1,31 @@
+name: CI Build & Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential dkms zstd shellcheck linux-headers-generic
+
+      - name: Run ShellCheck on scripts
+        run: |
+          shellcheck install.sh uninstall.sh status.sh config/mt7902-firmware.hook
+
+      - name: Test compile DKMS Bluetooth modules
+        run: |
+          KVER=$(ls /lib/modules | sort -V | tail -n1)
+          echo "Building against kernel: $KVER"
+          make -C dkms KVER="$KVER"
+          modinfo dkms/btmtk.ko | grep -i "BT_RAM_CODE_MT7902"
+          make -C dkms clean
